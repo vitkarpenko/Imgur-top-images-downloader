@@ -1,4 +1,4 @@
-Simple imgur downloader created for practice with Beautiful Soup and multithreading.<br />
+Simple imgur downloader created for practice with Beautiful Soup and multiprocessing.<br />
 Downloads up to 50 top results of Imgur search sorted by highest scoring.
 
 Usage:<br />
