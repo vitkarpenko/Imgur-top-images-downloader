@@ -8,7 +8,10 @@ imgur_top_downloader "dwarf fortress"
 import logging
 import argparse
 import requests
+import os
 import multiprocessing
+import shutil
+from collections import deque
 from bs4 import BeautifulSoup
 
 
@@ -29,14 +32,25 @@ def download_image(link, directory):
 
 def get_image_links(search_value):
     """Gets the html of a search query on Imgur, parses it,
-    and returns a list of up to 50 links to pictures.
+    and returns a deque of up to 50 links to pictures.
     """
-    r = requests.get("https://imgur.com/search?q={}".format(search_value))
-    logging.debug("Search query: https://imgur.com/search?q={}".format(search_value))
+    links = deque(maxlen=50)
+    if ' ' not in search_value:
+        search_query = "https://imgur.com/search?q={}".format(search_value)
+    else:
+        pluses_joined_search_value = '+'.join(search_value.split())
+        search_query = "https://imgur.com/search?q={}".format(pluses_joined_search_value)
+    r = requests.get(search_query)
+    logging.debug("Search query: {}".format(search_query))
     soup = BeautifulSoup(r.text, "lxml")
     for element in soup.find_all("a", class_="image-list-link"):
         gallery_link = "https://imgur.com" + element.get('href')
         logging.debug("Gallery link: {}.".format("https://imgur.com" + element.get('href')))
+        r = requests.get(gallery_link)
+        soup = BeautifulSoup(r.text, "lxml")
+        image_link = soup.select('div.post-image > img').get('src')
+        links.append("https://imgur.com" + image_link)
+    return links
 
 
 def main():
@@ -61,9 +75,29 @@ def main():
     logging.basicConfig(level=args.loglevel, format='%(levelname)s: %(message)s')
     logging.getLogger("requests").setLevel(logging.WARNING)
 
-    logging.info("Downloading {} images from Imgur.".format(args.search_value))
-    get_image_links(args.search_value)
+    # Setting up images folder.
+    images_directory = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                    'images')
+    if not os.path.exists(images_directory):
+        os.mkdir(images_directory)
 
+    # Setting up images subdirectory.
+    # If directory with such name already exists it will be ruthlessly cleared.
+    images_subdirectory = os.path.join(images_directory, search_value)
+    if not os.path.exists(images_subdirectory):
+        os.mkdir(images_subdirectory)
+    else:
+        shutil.rmtree(images_subdirectory, ignore_errors=True)
+
+    logging.info("Downloading {} images from Imgur.".format(args.search_value))
+    links = get_image_links(args.search_value)
+
+    # Downloading links.
+    pool_size = multiprocessing.cpu_count() * 2
+    pool = multiprocessing.Pool(processes=pool_size)
+    pool.close()
+    pool.map(download_image, ((link, images_subdirectory) for link in links))
+    pool.join()
 
 if __name__ == '__main__':
     main()
