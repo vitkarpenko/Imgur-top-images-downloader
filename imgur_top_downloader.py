@@ -18,21 +18,21 @@ from bs4 import BeautifulSoup
 def download_image(link, directory):
     """Downloads image from link to directory.
     """
-    logging.debug("Downloading image from {}.".format(link))
     r = requests.get(link)
     if r.status_code == 200:
         path = os.path.join(directory, os.path.basename(link))
         with open(path, 'wb') as f:
             for chunk in r.iter_content(1024):
                 f.write(chunk)
-        logging.debug("Image downloaded successfully.")
+        logging.debug("Image from {} downloaded successfully.".format(link))
     else:
-        logging.warning("Image can't be downloaded. Error code: {}.".format(r.status_code))
+        logging.warning("Image from {} can't be downloaded.\n"
+                        "Error code: {}.".format(link, r.status_code))
 
 
-def get_image_links(search_value):
+def get_gallery_links(search_value):
     """Gets the html of a search query on Imgur, parses it,
-    and returns a deque of up to 50 links to pictures.
+    and returns a deque of up to 50 links to gallery pages.
     """
     links = deque(maxlen=50)
     if ' ' not in search_value:
@@ -46,15 +46,22 @@ def get_image_links(search_value):
     for element in soup.find_all("a", class_="image-list-link"):
         gallery_link = "https://imgur.com" + element.get('href')
         logging.debug("Gallery link: {}.".format("https://imgur.com" + element.get('href')))
-        r = requests.get(gallery_link)
-        soup = BeautifulSoup(r.text, "lxml")
-        # If image link is not present try to find video.
-        try:
-            image_link = soup.select('div.post-image img')[0].get('src')
-        except IndexError:
-            image_link = soup.select('div.post-image source')[0].get('src')
-        links.append('http:' + image_link)
+        links.append(gallery_link)
     return links
+
+
+def get_media_link(gallery_link):
+    """Gets media link by gallery link.
+    """
+    r = requests.get(gallery_link)
+    soup = BeautifulSoup(r.text, "lxml")
+    # If image link is not present try to find video.
+    try:
+        media_link = soup.select('div.post-image img')[0].get('src')
+    except IndexError:
+        media_link = soup.select('div.post-image source')[0].get('src')
+    logging.debug("Media link: {}.".format(media_link))
+    return 'http:' + media_link
 
 
 def main():
@@ -86,19 +93,27 @@ def main():
         os.mkdir(images_directory)
 
     # Setting up images subdirectory.
-    # If directory with such name already exists it will be ruthlessly cleared.
+    # If a directory with such name already exists it will be ruthlessly cleared.
     images_subdirectory = os.path.join(images_directory, search_value)
     if os.path.exists(images_subdirectory):
         shutil.rmtree(images_subdirectory, ignore_errors=True)
     os.mkdir(images_subdirectory)
 
-    logging.info("Downloading {} images from Imgur.".format(args.search_value))
-    links = get_image_links(args.search_value)
+    logging.info("Downloading '{}' images from Imgur.".format(args.search_value))
+
+    # Collecting gallery links.
+    gallery_links = get_gallery_links(args.search_value)
+
+    # Collecting media links.
+    pool_size = multiprocessing.cpu_count() * 2
+    media_pool = multiprocessing.Pool(processes=pool_size)
+    media_pool_output = media_pool.map(get_media_link, gallery_links)
+    media_pool.close()
+    media_pool.join()
 
     # Downloading links.
-    pool_size = multiprocessing.cpu_count() * 2
     pool = multiprocessing.Pool(processes=pool_size)
-    pool.starmap(download_image, [(link, images_subdirectory) for link in links])
+    pool.starmap(download_image, [(link, images_subdirectory) for link in media_pool_output])
     pool.close()
     pool.join()
 
