@@ -10,7 +10,7 @@ git clone https://github.com/vitkarpenko/Imgur-top-images-downloader.git && cd I
 
 ## Usage
 ```
-imgur_top_downloader cats<br />
+imgur_top_downloader cats
 imgur_top_downloader "dwarf fortress"
 ```
 
