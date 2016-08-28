@@ -10,4 +10,4 @@ imgur_top_downloader "dwarf fortress"
 
 ## Example
 ![Alt text](/example/1.png?raw=true)
-![Alt text](/example/1.png?raw=true)
+![Alt text](/example/2.png?raw=true)
