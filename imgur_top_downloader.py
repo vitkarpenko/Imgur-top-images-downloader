@@ -11,6 +11,7 @@ import requests
 import os
 import multiprocessing
 import shutil
+import time
 from collections import deque
 from bs4 import BeautifulSoup
 
@@ -67,6 +68,10 @@ def get_media_link(gallery_link):
 def main():
     """Main function.
     """
+    # Start time.
+    ts = time.time()
+
+    # Setting up parser.
     parser = argparse.ArgumentParser(description="Downloads up to 50 top results of Imgur search"
                                                  "sorted by highest scoring.")
     parser.add_argument(
@@ -112,10 +117,12 @@ def main():
     media_pool.join()
 
     # Downloading links.
+    logging.info("{} images to download.".format(len(media_pool_output)))
     pool = multiprocessing.Pool(processes=pool_size)
     pool.starmap(download_image, [(link, images_subdirectory) for link in media_pool_output])
     pool.close()
     pool.join()
+    logging.info("Download finished successfully in {:.2f} seconds.".format(time.time() - ts))
 
 if __name__ == '__main__':
     main()
