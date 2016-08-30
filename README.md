@@ -3,10 +3,7 @@ Simple imgur downloader created for practice with Beautiful Soup and multiproces
 Downloads up to 50 top results of Imgur search sorted by highest scoring.
 
 ## Installation
-Run this from command line to clone repository and install requirements:
-```
-git clone https://github.com/vitkarpenko/Imgur-top-images-downloader.git && cd Imgur-top-images-downloader && sudo pip3 install -r -U requirements.txt
-```
+The dependencies are included in `requirements.txt` and can be installed using pip with `pip install -r requirements.txt`. I recommend doing this inside a `virtualenv`.
 
 ## Usage
 ```
